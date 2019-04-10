@@ -3,10 +3,9 @@ import numpy as np
 import time
 
 
-def naive(image, height, width):
+def naive(image, width, height):
     start = time.time()
     print(start)
-
     if not height % 2 or not width % 2:
         print("Box height and width must be odd")
         return
@@ -18,17 +17,18 @@ def naive(image, height, width):
         for y in range(height // 2, h - height // 2):
             for x in range(width // 2, w - width // 2):
                 sum = 0
-                for j in range(y - height // 2, y + height // 2):
+                for j in range(y - height // 2, y + height // 2 + 1):
                     if 0 < j <= h - 1:
-                        for i in range(x - width // 2, x + width // 2):
-                            if 0 < i < w - 1:
+                        for i in range(x - width // 2, x + width // 2 + 1):
+                            if 0 < i <= w - 1:
                                 sum += image[j][i][ch]
                 temp[y][x][ch] = sum / (width * height)
     print(time.time() - start)
+
     return temp
 
 
-def sep(image, height, width):
+def sep(image, width, height):
     start = time.time()
     print(start)
     if not height % 2 or not width % 2:
@@ -47,7 +47,7 @@ def sep(image, height, width):
         for y in range(height // 2, h - height // 2):
             for x in range(width // 2, w - width // 2):
                 sum = 0
-                for i in range(x - width // 2, x + width // 2):
+                for i in range(x - width // 2, x + width // 2 + 1):
                     if 0 < i <= w - 1:
                         sum += image[y][i][ch]
                 medias[y][x][ch] = sum / width
@@ -56,7 +56,7 @@ def sep(image, height, width):
         for y in range(height // 2, h - height // 2):
             for x in range(width // 2, w - width // 2):
                 sum = 0
-                for j in range(y - height // 2, y + height // 2):
+                for j in range(y - height // 2, y + height // 2 + 1):
                     if 0 < j <= h - 1:
                         sum += medias[j][x][ch]
                 saida[y][x][ch] = sum / height
@@ -150,9 +150,7 @@ def integral(img, width, height):
 
 
 img = cv2.imread("mao.bmp")
-# blurred = sep(img, 21, 51)
-# blurred = naive(img, 21, 21)
-blurred = integral(img, 51, 51)
-cv2.imwrite("Output\integBlurred51x51.bmp", blurred)
-# for i in blurred:
-#     print(i)
+# blurred = sep(img, 11, 1)
+blurred = naive(img, 3, 13)
+# blurred = integral(img, 51, 21)
+cv2.imwrite("Output/naiveBlurred3x13.bmp", blurred)
