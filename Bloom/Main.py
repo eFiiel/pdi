@@ -12,7 +12,6 @@ def maskBox(mask, iter, boxes, kernel):
 
     # Fazendo as borragens
     for i in range(iter):
-
         # Aplica o boxFilter varias vezes para se aproximar ao GaussianFilter
         for j in range(boxes):
             blurredMask = cv2.boxFilter(blurredMask, blurredMask.shape[2], kernel)
@@ -24,7 +23,7 @@ def maskBox(mask, iter, boxes, kernel):
 
 
 # Função que cria a máscara usando GaussianFilter
-def maskGaus(mask, iter, sigma):
+def maskGauss(mask, iter, sigma):
 
     # Cria uma imagem preta para fazer as somas das máscaras borradas
     blur = np.zeros(mask.shape)
@@ -36,6 +35,7 @@ def maskGaus(mask, iter, sigma):
 
     # Normaliza a máscara pra valores entre 0 e 255, tirando os overflows
     blur = cv2.normalize(blur, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+
     return blur
 
 
@@ -60,10 +60,11 @@ def bloom(img, thres, iter, sigma=None, kernel=None):
 
     # Decide qual filtro vai usar baseado nos argumentos
     if sigma:
-        blur = maskGaus(mask, iter, sigma)
+        blur = maskGauss(mask, iter, sigma)
     else:
         blur = maskBox(mask, iter, 5, kernel)
 
+    cv2.imwrite("Output\maskBox.bmp", blur)
     print(time.time() - start)
 
     # Retorna uma soma empiricamente ponderada da imagem com a máscara
@@ -78,4 +79,4 @@ bloomed = bloom(img, 0.5, 5, sigma=3)
 # bloomed = bloom(img, 0.5, 5, kernel=(15, 15))
 
 # Gera o arquivo da imagem
-cv2.imwrite("Output\GaussBloomed.bmp", bloomed)
+cv2.imwrite("Output\BoxBloomed.bmp", bloomed)
