@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 sys.setrecursionlimit(2000)
 
 originais = []
-windows_paths = [
+paths = [
     {
         "path": "src\\60.bmp",
         "nRice": 60
@@ -31,7 +31,7 @@ windows_paths = [
 
 ]
 
-paths = [
+unix_paths = [
     {
         "path": "src/60.bmp",
         "nRice": 60
