@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 sys.setrecursionlimit(2000)
 
 originais = []
-paths = [
+windows_paths = [
     {
         "path": "src\\60.bmp",
         "nRice": 60
@@ -26,6 +26,30 @@ paths = [
     },
     {
         "path": "src\\205.bmp",
+        "nRice": 205
+    },
+
+]
+
+paths = [
+    {
+        "path": "src/60.bmp",
+        "nRice": 60
+    },
+    {
+        "path": "src/82.bmp",
+        "nRice": 82
+    },
+    {
+        "path": "src/114.bmp",
+        "nRice": 114
+    },
+    {
+        "path": "src/150.bmp",
+        "nRice": 150
+    },
+    {
+        "path": "src/205.bmp",
         "nRice": 205
     },
 
@@ -68,6 +92,8 @@ class Set:
         self.avg = self.size / self.qnt
         self.maxSize = max(blob.size, self.maxSize)
         self.sizes.append(blob.size)
+
+
 
 class Component:
 
@@ -153,25 +179,25 @@ def counter(imgs):
 def analyze(res):
     index = 0
     for img in res:
-        plt.hist(img.sizes)
+        # plt.hist(img.sizes, bins='fd')
         # plt.show()
         coef = 0.157/((st.pvariance(img.sizes))**(1/2) / img.avg)
         n, bins = np.histogram(img.sizes, bins='auto')
         argmax = np.argmax(n)
-        moda = (bins[argmax]*0.42 + bins[argmax+1]*0.58)
+        moda = (bins[argmax] + bins[argmax+1])/2
         for rice in img.blobs:
             qnt = rice.size // (moda)
             if rice.size % moda >= coef * moda:
                 qnt += 1
             img.normQnt += qnt
-    
+
         # print("\nContagem da imagem de {} arroz : {}".format(paths[index]['nRice'], img.qnt))
         print("\nContagem normalizada da imagem de {} arroz : {}".format(paths[index]['nRice'], img.normQnt))
-        # print("MaxHist", moda)
+        # print("MaxHist: ", moda)
         # print("Média: ", img.avg)
         # print("Maior: ", img.maxSize)
-        # print("Variância", st.pvariance(img.sizes))
-        # print("Var/Med", (st.pvariance(img.sizes))**(1/2) / img.avg)
+        # print("Variância: ", st.pvariance(img.sizes))
+        # print("Var/Med: ", (st.pvariance(img.sizes))**(1/2) / img.avg)
         # print(coef)
         index += 1
 
