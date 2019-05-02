@@ -184,16 +184,16 @@ def analyze(res):
         coef = 0.157/((st.pvariance(img.sizes))**(1/2) / img.avg)
         n, bins = np.histogram(img.sizes, bins='auto')
         argmax = np.argmax(n)
-        moda = (bins[argmax] + bins[argmax+1])/2
+        riceSize = (bins[argmax] + bins[argmax+1])/2
         for rice in img.blobs:
-            qnt = rice.size // (moda)
-            if rice.size % moda >= coef * moda:
+            qnt = rice.size // riceSize
+            if rice.size % riceSize >= coef * riceSize:
                 qnt += 1
             img.normQnt += qnt
 
         # print("\nContagem da imagem de {} arroz : {}".format(paths[index]['nRice'], img.qnt))
         print("\nContagem normalizada da imagem de {} arroz : {}".format(paths[index]['nRice'], img.normQnt))
-        # print("MaxHist: ", moda)
+        # print("MaxHist: ", riceSize)
         # print("Média: ", img.avg)
         # print("Maior: ", img.maxSize)
         # print("Variância: ", st.pvariance(img.sizes))
