@@ -3,7 +3,7 @@ import numpy as np
 import time
 import sys
 import statistics as st
-import matplotlib.pyplot as plt
+
 sys.setrecursionlimit(2000)
 
 originais = []
@@ -94,7 +94,6 @@ class Set:
         self.sizes.append(blob.size)
 
 
-
 class Component:
 
     def __init__(self, label):
@@ -181,7 +180,7 @@ def analyze(res):
     for img in res:
         # plt.hist(img.sizes, bins='fd')
         # plt.show()
-        coef = 0.157/((st.pvariance(img.sizes))**(1/2) / img.avg)
+        coef = 0.157/(st.pstdev(img.sizes) / img.avg)
         n, bins = np.histogram(img.sizes, bins='auto')
         argmax = np.argmax(n)
         riceSize = (bins[argmax] + bins[argmax+1])/2
@@ -192,11 +191,11 @@ def analyze(res):
             img.normQnt += qnt
 
         # print("\nContagem da imagem de {} arroz : {}".format(paths[index]['nRice'], img.qnt))
-        print("\nContagem normalizada da imagem de {} arroz : {}".format(paths[index]['nRice'], img.normQnt))
+        print("\nContagem estatística da imagem de {} arroz : {}".format(paths[index]['nRice'], img.normQnt))
         # print("MaxHist: ", riceSize)
         # print("Média: ", img.avg)
         # print("Maior: ", img.maxSize)
-        # print("Variância: ", st.pvariance(img.sizes))
+        # print("Variância: ", st.pvariance(img.sizes)**(1/2))
         # print("Var/Med: ", (st.pvariance(img.sizes))**(1/2) / img.avg)
         # print(coef)
         index += 1
