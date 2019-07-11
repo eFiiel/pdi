@@ -2,26 +2,27 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 from colors import color
+import os
 
 
 def find_res(img_orig_rgb, d_graus):
-    img_orig = cv2.cvtColor(img_orig_rgb, cv2.COLOR_BGR2GRAY)
-
-    w1 = img_orig.shape[1]
-    h1 = img_orig.shape[0]
+    w1 = img_orig_rgb.shape[1]
+    h1 = img_orig_rgb.shape[0]
 
     # deixa a imagem quadrada e preenche com branco
     size = max(w1, h1)
-    print(size)
+    # print(size)
 
-    img = np.ones((size, size), np.uint8) * 255
+    img_rgb = np.ones((size, size, 3), np.uint8) * 255
 
     if w1 > h1:
-        img[int((w1 - h1) / 2):int((w1 - (w1 - h1) / 2)), 0:w1] = img_orig
+        img_rgb[int((w1 - h1) / 2):int((w1 - (w1 - h1) / 2)), 0:w1, :] = img_orig_rgb
     elif h1 > w1:
-        img[0:h1, int((h1 - w1) / 2):int((h1 - (h1 - w1) / 2))] = img_orig
+        img_rgb[0:h1, int((h1 - w1) / 2):int((h1 - (h1 - w1) / 2)), :] = img_orig_rgb
     else:
-        img = img_orig
+        img_rgb = img_orig_rgb
+
+    img = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
 
     w2 = img.shape[1]
     h2 = img.shape[0]
@@ -49,18 +50,25 @@ def find_res(img_orig_rgb, d_graus):
             min_s = s
             min_s_idx = i
 
-    print("min = " + str(min_s))
-    print("min_i = " + str(min_s_idx))
+    # print("min = " + str(min_s))
+    # print("min_i = " + str(min_s_idx))
 
     # gira a imagem original para que o resistor fique reto
-    M = cv2.getRotationMatrix2D((w1 / 2, h1 / 2), (min_s_idx + 1) * d_graus + 45, 1)
-    img_orig_rgb_rot = cv2.warpAffine(img_orig_rgb, M, (w1, h1), borderValue=(255, 255, 255, 255))
-    img = cv2.cvtColor(img_orig_rgb_rot, cv2.COLOR_BGR2GRAY)
-    # cv2.imwrite('teste.bmp', img)
+    M = cv2.getRotationMatrix2D((w2 / 2, h2 / 2), (min_s_idx + 1) * d_graus + 45, 1)
+    img_rgb_rot = cv2.warpAffine(img_rgb, M, (w2, h2), borderValue=(255, 255, 255, 255))
+    img = cv2.cvtColor(img_rgb_rot, cv2.COLOR_BGR2GRAY)
+
+    # cv2.imshow("img_rgb_rot", img_rgb_rot)
+    # cv2.waitKey(0)
 
     # calcula soma horizontal e vertical de novo para achar onde esta o resistor
     somaVert = np.sum(img, 0)
     somaHoriz = np.sum(img, 1)
+
+    # "borra" o grafico para deixar curvas mais suaves
+    blurSize = int(size / 10)
+    somaVert = np.convolve(somaVert, np.ones(blurSize) * (1 / blurSize), 'valid')
+    somaHoriz = np.convolve(somaHoriz, np.ones(blurSize) * (1 / blurSize), 'valid')
 
     # binariza o grafico com otsu, onde for zero no grafico  é o resistor
     thresh_v, binar_v = cv2.threshold(np.uint8((somaVert / max(somaVert)) * 255), 0, 255,
@@ -70,16 +78,20 @@ def find_res(img_orig_rgb, d_graus):
 
     x1, x2 = maior_seq_zero(binar_v)
     y1, y2 = maior_seq_zero(binar_h)
+    x1 = x1 + int(blurSize / 2)
+    x2 = x2 + int(blurSize / 2)
+    y1 = y1 + int(blurSize / 2)
+    y2 = y2 + int(blurSize / 2)
 
-    print(x1)
-    print(x2)
-    print(y1)
-    print(y2)
+    # print(x1)
+    # print(x2)
+    # print(y1)
+    # print(y2)
     wR = abs(x1 - x2)
     hR = abs(y1 - y2)
 
     # corta resistor da imagem
-    img_res = img_orig_rgb_rot[int(y1 + hR * 0.07):int(y2 - 0.07 * hR), int(x1 + 0.07 * wR):int(x2 - 0.07 * wR)]
+    img_res = img_rgb_rot[int(y1 + hR * 0.13):int(y2 - 0.13 * hR), int(x1 + 0.05 * wR):int(x2 - 0.05 * wR)]
     if x2 - x1 < y2 - y1:  # se estiver de pe, deita
         img_res = cv2.rotate(img_res, cv2.ROTATE_90_CLOCKWISE)
 
@@ -104,93 +116,85 @@ def maior_seq_zero(arr):
     return st_bigger, st_bigger + bigger - 1
 
 
-def getColors(resistor):
+def getResistance(resistor):
+    resist = resistor.copy()
     res = cv2.cvtColor(resistor, cv2.COLOR_BGR2HLS)
-    res = cv2.normalize(res, None, alpha=0, beta=360, norm_type=cv2.NORM_MINMAX)
-    resistor = cv2.normalize(resistor, None, alpha=0, beta=360, norm_type=cv2.NORM_MINMAX)
+    res = cv2.normalize(res, None, alpha=0, beta=360, dtype=cv2.CV_32F, norm_type=cv2.NORM_MINMAX)
+    resistor = cv2.normalize(resistor, None, alpha=0, beta=360, dtype=cv2.CV_32F, norm_type=cv2.NORM_MINMAX)
     h = res.shape[0]
     w = res.shape[1]
     hue, sat, lum, = cv2.split(res)
+    luminanceAV = np.average(lum)
+    print("Luminancia média: ", luminanceAV)
     somaHue = np.average(hue, 0)
+
     somaSat = np.average(sat, 0)
     somaLum = np.average(lum, 0)
     fig = plt.figure()
-    plt.plot(somaHue, 'r')
-    fig.savefig('HSLVisu/HueHist.png')
-    fig = plt.figure()
-    plt.plot(somaSat, 'g')
-    fig.savefig('HSLVisu/SatHist.png')
-    fig = plt.figure()
-    plt.plot(somaLum, 'b')
-    fig.savefig('HSLVisu/LumHist.png')
-
-    # Utilizando média
-    blue, green, red, = cv2.split(resistor)
-    somaBlue = np.average(blue, 0)
-    somaGreen = np.average(green, 0)
-    somaRed = np.average(red, 0)
-    fig = plt.figure()
-    plt.plot(somaBlue, 'b')
-    plt.plot(somaGreen, 'g')
-    plt.plot(somaRed, 'r')
-    fig.savefig('RGBVisu/RGBAVHist.png')
-
-    # Utilizando mediana
-    medBlue = np.median(blue, 0)
-    medGreen = np.median(green, 0)
-    medRed = np.median(red, 0)
-    fig = plt.figure()
-    plt.plot(medBlue, 'b')
-    plt.plot(medGreen, 'g')
-    plt.plot(medRed, 'r')
-    fig.savefig('RGBVisu/RGBMEDHist.png')
-
     medianH = np.median(somaHue)
     diffH = np.array([abs(x - medianH) for x in somaHue])
-
+    plt.plot(diffH, 'r')
+    fig.savefig('HSLVisu/HueHist.png')
+    plt.clf()
+    plt.cla()
+    plt.close()
+    fig = plt.figure()
     medianS = np.median(somaSat)
     diffS = np.array([abs(x - medianS) for x in somaSat])
-
+    plt.plot(diffS, 'g')
+    fig.savefig('HSLVisu/SatHist.png')
+    plt.clf()
+    plt.cla()
+    plt.close()
+    fig = plt.figure()
     medianL = np.median(somaLum)
     diffL = np.array([abs(x - medianL) for x in somaLum])
+    plt.plot(diffL, 'b')
+    fig.savefig('HSLVisu/LumHist.png')
+    plt.clf()
+    plt.cla()
+    plt.close()
 
     diff = diffS + diffH + diffL
+
     thresh = np.average(diff)
 
     fig = plt.figure()
     plt.plot(diff)
     plt.hlines(thresh, 0, len(diff))
     fig.savefig('Output/Diff.png')
+    plt.clf()
+    plt.cla()
+    plt.close()
 
     fig = plt.figure()
     binDiff = np.where(diff < thresh, 0, 255)
     plt.plot(binDiff)
     fig.savefig('Output/BinDiff.png')
+    plt.clf()
+    plt.cla()
+    plt.close()
     listras = findStripes(binDiff)
-    means = [np.mean(i) for i in listras]
-    differ = [abs(means[i] - means[i + 1]) for i in range(len(listras) - 1)]
-    max = np.argmax(differ)
+
+    # means = [np.mean(i) for i in listras]
+    # differ = [abs(means[i] - means[i + 1]) for i in range(len(listras) - 1)]
+    # max = np.argmax(differ)
     if len(listras) > 3:
-        if max == 0:
-            listras.pop(0)
-            listras.reverse()
-        else:
-            listras.pop(len(listras) - 1)
-    else:
-        print(np.mean(listras[0]))
-        print(abs(np.mean(listras[2]) - res.shape[1]))
-        if np.mean(listras[0]) > abs(np.mean(listras[2]) - res.shape[1]):
-            print(listras)
-            listras.reverse()
-            print(listras)
+        num = min(listras, key=lambda listras: abs(listras[0] - listras[1]))
+        listras.remove(num)
+
+    if np.mean(listras[0]) > abs(np.mean(listras[2]) - res.shape[1]):
+        listras.reverse()
 
     j = 0
 
     stripes = []
     for i in listras:
-        print(listras)
         start = i[0]
         end = i[1]
+        w = resist.shape[1]
+        h = resist.shape[0]
+        cv2.rectangle(resist, (start, 0), (end, h-1), (255, 255, 255), 1)
         if start != end:
             listra = resistor[:, start:end]
             listr = res[:, start:end]
@@ -211,28 +215,39 @@ def getColors(resistor):
 
     for i in stripes:
         h, s, l = cv2.split(i)
-        hue.append(np.median(h))
+        n, bins = np.histogram(h, bins=12)
+        argmax = np.argmax(n)
+        hue.append((bins[argmax] + bins[argmax + 1]) / 2)
+
         sat.append(np.median(s))
-        lum.append(np.median(l))
+        lum.append(np.average(l))
 
     print("H: ", hue)
     print("S: ", sat)
     print("L: ", lum)
-    values, resC = getValues(hue, sat, lum)
+    output = getValues(hue, sat, lum)
+    values, resC = output[0], output[1]
     print(resC)
     print(values)
-    resistance = (values[0]*10 + values[1])*10**values[2]
+    if 'Color Not Recognized' in values:
+        return resist
+    try:
+        resistance = (values[0] * 10 + values[1]) * 10 ** values[2]
+    except Exception as err:
+        print("Processing failed")
+        return resist
+    print(resistance)
     milhar = resistance / 1000
     if milhar > 1:
         if milhar < 1000:
-            print(resistance/1000, "k Ohms", sep="")
+            print(resistance / 1000, "k Ohms", sep="")
         elif milhar < 1000000:
             print(resistance / 1000000, "M Ohms", sep="")
         elif milhar < 1000000000:
             print(resistance / 1000000000, "G Ohms", sep="")
     else:
         print(resistance, "Ohms")
-    return []
+    return resist
 
 
 def findStripes(vect):
@@ -247,8 +262,9 @@ def findStripes(vect):
             while i < length:
                 if vect[i] == 0:
                     end = i - 1
-                    print("Start", start, " End", end)
-                    cumes.append((start, end))
+                    # print("Start", start, " End", end)
+                    if abs(start - end) > 0.03*length:
+                        cumes.append((start, end))
                     found = True
                     break
 
@@ -273,35 +289,34 @@ def getValues(hue, sat, lum):
                         found = True
                         break
         if not found:
-            resColors.append('Color Not Recognizeds')
+            resColors.append('Color Not Recognized')
             values.append('Color Not Recognized')
+
     return values, resColors
 
 
-def findMaxima(numbers):
-    maxima = []
-    length = len(numbers)
-    if length >= 2:
-        if numbers[0] > numbers[1]:
-            maxima.append((numbers[0], 0))
+def execution(file):
+    img_color = cv2.imread(f'src/{file}')
+    img_color = cv2.normalize(img_color, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+    img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
 
-        if length > 3:
-            for i in range(1, length - 1):
-                if abs(numbers[i] - numbers[i - 1]) > 10 or abs(numbers[i] - numbers[i + 1]) > 10:
-                    maxima.append((numbers[i], i))
-
-        if numbers[length - 1] > numbers[length - 2]:
-            maxima.append((numbers[length - 1], length - 1))
-    return maxima
+    resistor = find_res(img_color, 10)
+    cv2.imwrite('Output/img_certa.bmp', resistor)
+    resistor = getResistance(resistor)
+    print(resistor.shape)
+    cv2.imshow(f"{file}", resistor)
+    cv2.waitKey()
 
 
-img_color = cv2.imread('src/330.bmp')
-img_color = cv2.normalize(img_color, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
+def main():
+    files = []
+    for root, dirs, files in os.walk("./src"):
+        pass
 
-resistor = find_res(img_color, 10)
-cv2.imwrite('Output/img_certa.bmp', resistor)
-colors = getColors(resistor)
+    for f in files:
+        execution(f)
+        print(f)
 
-# TODO Constancia de cor estudar
-# TODO compensação de cor
+
+if __name__ == "__main__":
+    main()
